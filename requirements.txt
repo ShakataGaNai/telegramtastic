@@ -1,6 +1,0 @@
-escpos==2.0.0
-meshtastic==2.6.0
-paho-mqtt==2.1.0
-cryptography==44.0.2
-sqlalchemy==2.0.40
-python-dotenv==1.1.0
