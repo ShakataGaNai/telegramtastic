@@ -90,3 +90,80 @@ class NodeRepository:
             return None
         finally:
             session.close()
+    
+    def can_print_message(self, node_id, rate_limit_seconds):
+        """
+        Check if a node can print a message based on rate limiting
+        
+        Args:
+            node_id (int): The node ID to check
+            rate_limit_seconds (int): Minimum seconds between prints
+            
+        Returns:
+            bool: True if the node can print a message, False otherwise
+        """
+        session = self.session_factory()
+        try:
+            node = session.query(NodeInfo).filter_by(node_id=node_id).first()
+            
+            if not node:
+                # Node doesn't exist in database, create it and allow printing
+                return True
+            
+            if node.last_print is None:
+                # Node has never printed a message, allow printing
+                return True
+            
+            # Check if enough time has passed since last print
+            now = datetime.now(timezone.utc)
+            # Handle timezone-naive datetime from database
+            last_print = node.last_print
+            if last_print.tzinfo is None:
+                last_print = last_print.replace(tzinfo=timezone.utc)
+            time_since_last_print = (now - last_print).total_seconds()
+            
+            return time_since_last_print >= rate_limit_seconds
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Database error while checking print rate limit for node {node_id}: {e}")
+            # In case of database error, allow printing to avoid blocking messages
+            return True
+        finally:
+            session.close()
+    
+    def update_last_print(self, node_id):
+        """
+        Update the last_print timestamp for a node
+        
+        Args:
+            node_id (int): The node ID to update
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        session = self.session_factory()
+        try:
+            node = session.query(NodeInfo).filter_by(node_id=node_id).first()
+            
+            if not node:
+                # Node doesn't exist, create it with current timestamp
+                new_node = NodeInfo(
+                    node_id=node_id,
+                    last_print=datetime.now(timezone.utc)
+                )
+                session.add(new_node)
+                logger.info(f"Created new node {node_id} with last_print timestamp")
+            else:
+                # Update existing node
+                node.last_print = datetime.now(timezone.utc)
+                logger.debug(f"Updated last_print for node {node_id}")
+            
+            session.commit()
+            return True
+            
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"Database error while updating last_print for node {node_id}: {e}")
+            return False
+        finally:
+            session.close()

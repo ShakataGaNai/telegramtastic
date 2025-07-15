@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Documentation (keep README.md for build)
+# README.md
+*.md
+!README.md
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database files (will be created in container)
+data/
+*.db
+
+# Test files
+test_*.py
+*_test.py
+test-*
+
+# Logs
+*.log
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# CI/CD
+.github/

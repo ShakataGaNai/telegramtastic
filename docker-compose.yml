@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  telegramtastic:
+    image: ghcr.io/shakataganai/telegramtastic:latest
+    container_name: telegramtastic
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    # Uncomment the following lines for USB printers
+    # devices:
+    #   - /dev/usb/lp0:/dev/usb/lp0
+    # privileged: true
+    restart: unless-stopped
+    
+    # Optional: Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

@@ -1,7 +1,7 @@
 import os
 import logging
 import sys
-from sqlalchemy import create_engine, event, pool
+from sqlalchemy import create_engine, event, pool, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -44,6 +44,9 @@ def setup_database():
         # Create all tables if they don't exist
         Base.metadata.create_all(engine)
         
+        # Run database migrations
+        migrate_database(engine)
+        
         # Create a session factory
         session_factory = scoped_session(sessionmaker(bind=engine))
         
@@ -53,3 +56,23 @@ def setup_database():
     except SQLAlchemyError as e:
         logger.error(f"Database connection failed: {e}")
         return None
+
+def migrate_database(engine):
+    """Apply database migrations for schema changes"""
+    try:
+        with engine.connect() as conn:
+            # Check if last_print column exists
+            result = conn.execute(text("PRAGMA table_info(nodes)"))
+            columns = [row[1] for row in result.fetchall()]
+            
+            if 'last_print' not in columns:
+                logger.info("Adding last_print column to nodes table")
+                conn.execute(text("ALTER TABLE nodes ADD COLUMN last_print DATETIME"))
+                conn.commit()
+                logger.info("Database migration completed: added last_print column")
+            else:
+                logger.debug("Database schema is up to date")
+                
+    except SQLAlchemyError as e:
+        logger.error(f"Database migration failed: {e}")
+        raise

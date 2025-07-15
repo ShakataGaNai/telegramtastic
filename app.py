@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from escpos.printer import Network
+from escpos.printer import Network, Usb
 import time
 import os
 import sys
@@ -22,7 +22,12 @@ from common.common import printThis
 
 # ENVVAR Setup
 load_dotenv()
+PRINTER_TYPE = os.getenv("PRINTER_TYPE", "network").lower()
 PRINTER_IP = os.getenv("PRINTER_IP")
+PRINTER_USB_VENDOR_ID = os.getenv("PRINTER_USB_VENDOR_ID")
+PRINTER_USB_PRODUCT_ID = os.getenv("PRINTER_USB_PRODUCT_ID")
+PRINTER_USB_DEVICE = os.getenv("PRINTER_USB_DEVICE")
+MESSAGE_RATE_LIMIT_SECONDS = int(os.getenv("MESSAGE_RATE_LIMIT_SECONDS", 60))
 MQTT_SRV = os.getenv("MQTT_SRV")
 MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASS = os.getenv("MQTT_PASS")
@@ -54,14 +59,47 @@ else:
     sys.exit(1)
 
 # PRINTER SETUP
-try:
-    logger.info(f"Connecting to printer at {PRINTER_IP}...")
-    printer = Network(PRINTER_IP,timeout=5)
-    # Reset to default settings
-    printer.set_with_default()
-except:
-    logger.error("Error connecting to printer")
-    sys.exit(1)
+def setup_printer():
+    """Setup printer connection based on configuration"""
+    if PRINTER_TYPE == "network":
+        if not PRINTER_IP:
+            logger.error("PRINTER_IP not set for network printer")
+            sys.exit(1)
+        try:
+            logger.info(f"Connecting to network printer at {PRINTER_IP}...")
+            printer = Network(PRINTER_IP, timeout=5)
+            printer.set_with_default()
+            return printer
+        except Exception as e:
+            logger.error(f"Error connecting to network printer: {e}")
+            sys.exit(1)
+    
+    elif PRINTER_TYPE == "usb":
+        try:
+            if PRINTER_USB_DEVICE:
+                logger.info(f"Connecting to USB printer at device {PRINTER_USB_DEVICE}...")
+                printer = Usb(PRINTER_USB_DEVICE)
+            elif PRINTER_USB_VENDOR_ID and PRINTER_USB_PRODUCT_ID:
+                # Convert hex strings to integers
+                vendor_id = int(PRINTER_USB_VENDOR_ID, 16)
+                product_id = int(PRINTER_USB_PRODUCT_ID, 16)
+                logger.info(f"Connecting to USB printer (VID: {hex(vendor_id)}, PID: {hex(product_id)})...")
+                printer = Usb(vendor_id, product_id)
+            else:
+                logger.error("USB printer requires either PRINTER_USB_DEVICE or both PRINTER_USB_VENDOR_ID and PRINTER_USB_PRODUCT_ID")
+                sys.exit(1)
+            
+            printer.set_with_default()
+            return printer
+        except Exception as e:
+            logger.error(f"Error connecting to USB printer: {e}")
+            sys.exit(1)
+    
+    else:
+        logger.error(f"Invalid PRINTER_TYPE: {PRINTER_TYPE}. Must be 'network' or 'usb'")
+        sys.exit(1)
+
+printer = setup_printer()
 
 # Keep packets we've seen in memory.
 seenPackets = list()
@@ -175,7 +213,21 @@ def decode_message_app(decoded_mp, pb, to, frm):
     try:
         payload = decoded_mp.decoded.payload.decode("utf-8")
         logger.debug(f"Text Message: {payload}")
-        printThis(to, frm, payload, printer)
+        
+        # Get the sender node ID for rate limiting
+        sender_node_id = getattr(decoded_mp, 'from')
+        
+        # Check if this node can print a message (rate limiting)
+        if node_repo.can_print_message(sender_node_id, MESSAGE_RATE_LIMIT_SECONDS):
+            # Update the last print timestamp in database
+            if node_repo.update_last_print(sender_node_id):
+                logger.info(f"Printing message from node {sender_node_id} ({frm.short_name}): {payload}")
+                printThis(to, frm, payload, printer)
+            else:
+                logger.warning(f"Failed to update last_print for node {sender_node_id}, skipping print")
+        else:
+            logger.info(f"Rate limiting: Skipping message from node {sender_node_id} ({frm.short_name}) - {MESSAGE_RATE_LIMIT_SECONDS}s cooldown active")
+            
     except Exception as e:
         logger.warning(f"Error processing MESSAGE_APP packet ({decoded_mp.id}): {e}")
 

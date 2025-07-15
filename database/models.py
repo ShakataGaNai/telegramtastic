@@ -26,6 +26,7 @@ class NodeInfo(Base):
     # Tracking data - using UTC time
     first_seen = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     last_seen = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_print = Column(DateTime, nullable=True)  # When this node last had a message printed
 
     def __repr__(self):
         return f"<NodeInfo(node_id={self.node_id}, short_name='{self.short_name}')>"

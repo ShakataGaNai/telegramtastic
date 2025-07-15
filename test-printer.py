@@ -1,24 +1,58 @@
 #!/usr/bin/env python
-from escpos.printer import Network
+from escpos.printer import Network, Usb
 from PIL import Image
 import time
 import os
+import sys
 from dotenv import load_dotenv
+
+def setup_printer():
+    """Setup printer connection based on configuration"""
+    load_dotenv()
+    printer_type = os.getenv("PRINTER_TYPE", "network").lower()
+    
+    if printer_type == "network":
+        printer_ip = os.getenv("PRINTER_IP")
+        if not printer_ip:
+            print("Error: PRINTER_IP not set in .env file")
+            sys.exit(1)
+        try:
+            print(f"Connecting to network printer at {printer_ip}...")
+            return Network(printer_ip)
+        except Exception as e:
+            print(f"Error connecting to network printer: {e}")
+            sys.exit(1)
+    
+    elif printer_type == "usb":
+        try:
+            printer_usb_device = os.getenv("PRINTER_USB_DEVICE")
+            printer_usb_vendor_id = os.getenv("PRINTER_USB_VENDOR_ID")
+            printer_usb_product_id = os.getenv("PRINTER_USB_PRODUCT_ID")
+            
+            if printer_usb_device:
+                print(f"Connecting to USB printer at device {printer_usb_device}...")
+                return Usb(printer_usb_device)
+            elif printer_usb_vendor_id and printer_usb_product_id:
+                vendor_id = int(printer_usb_vendor_id, 16)
+                product_id = int(printer_usb_product_id, 16)
+                print(f"Connecting to USB printer (VID: {hex(vendor_id)}, PID: {hex(product_id)})...")
+                return Usb(vendor_id, product_id)
+            else:
+                print("Error: USB printer requires either PRINTER_USB_DEVICE or both PRINTER_USB_VENDOR_ID and PRINTER_USB_PRODUCT_ID")
+                sys.exit(1)
+        except Exception as e:
+            print(f"Error connecting to USB printer: {e}")
+            sys.exit(1)
+    
+    else:
+        print(f"Error: Invalid PRINTER_TYPE: {printer_type}. Must be 'network' or 'usb'")
+        sys.exit(1)
 
 def main():
     """Test script for thermal receipt printer."""
-    # Load environment variables
-    load_dotenv()
-    printer_ip = os.getenv("PRINTER_IP")
-    
-    if not printer_ip:
-        print("Error: PRINTER_IP not set in .env file")
-        return
+    printer = setup_printer()
     
     try:
-        # Connect to the printer
-        print(f"Connecting to printer at {printer_ip}...")
-        printer = Network(printer_ip)
         
         # Reset to default settings
         printer.set_with_default()
