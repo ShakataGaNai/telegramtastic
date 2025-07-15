@@ -1,11 +1,12 @@
-# Use Python 3.13 as base image
-FROM python:3.13-slim
+# Use Python 3.13 as base image with multi-architecture support
+FROM --platform=$BUILDPLATFORM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies for USB printer support
+# Handle architecture-specific dependencies
 RUN apt-get update && apt-get install -y \
     libusb-1.0-0 \
     libusb-1.0-0-dev \
