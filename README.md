@@ -8,7 +8,18 @@ What do you get when you mash a receipt printer with Meshtastic? We'll find out!
 
 ## Installation
 
-### Option 1: Docker (Recommended)
+### Option 1: All-in-One Setup (Recommended for Testing)
+Complete setup with MQTT broker, Meshtastic daemon, and Telegramtastic:
+
+```bash
+cd examples/all-in-one
+# Configure your hardware in docker-compose.yml and .env
+docker-compose up -d
+```
+
+See [`examples/all-in-one/README.md`](examples/all-in-one/README.md) for detailed setup instructions.
+
+### Option 2: Docker (Production)
 1. Pull the pre-built image from GitHub Container Registry:
    ```bash
    docker pull ghcr.io/shakataganai/telegramtastic:latest
@@ -30,7 +41,7 @@ What do you get when you mash a receipt printer with Meshtastic? We'll find out!
      ghcr.io/shakataganai/telegramtastic:latest
    ```
 
-### Option 2: Local Development
+### Option 3: Local Development
 1. Install uv if you haven't already:
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh

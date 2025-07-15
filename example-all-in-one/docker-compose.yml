@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: meshtastic-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "$$SYS/broker/uptime", "-C", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Meshtastic Daemon
+  meshtasticd:
+    image: meshtastic/meshtasticd:2.7.1-alpha-alpine
+    container_name: meshtastic-daemon
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    volumes:
+      - ./meshtasticd.yaml:/app/meshtasticd.yaml
+      - meshtastic_data:/app/data
+    devices:
+      # Uncomment the device that matches your Meshtastic hardware
+      # - /dev/ttyUSB0:/dev/ttyUSB0  # USB serial device
+      # - /dev/ttyACM0:/dev/ttyACM0  # USB ACM device
+      # - /dev/serial/by-id/YOUR_DEVICE_ID:/dev/serial/by-id/YOUR_DEVICE_ID
+    privileged: true  # Required for device access
+    restart: unless-stopped
+    environment:
+      - MESHTASTIC_CONFIG=/app/meshtasticd.yaml
+    healthcheck:
+      test: ["CMD", "pgrep", "meshtasticd"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegramtastic Receipt Printer
+  telegramtastic:
+    image: ghcr.io/shakataganai/telegramtastic:latest
+    container_name: telegramtastic
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./printer-test:/app/printer-test
+    devices:
+      # Uncomment if using USB printer
+      # - /dev/usb/lp0:/dev/usb/lp0
+      # - /dev/lp0:/dev/lp0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  meshtastic_data:
+
+networks:
+  default:
+    driver: bridge

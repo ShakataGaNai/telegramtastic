@@ -3,7 +3,6 @@
 .gitignore
 
 # Documentation (keep README.md for build)
-# README.md
 *.md
 !README.md
 
@@ -55,3 +54,6 @@ Dockerfile
 
 # CI/CD
 .github/
+
+# Examples and demos
+example*/

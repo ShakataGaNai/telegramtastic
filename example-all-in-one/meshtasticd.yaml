@@ -1,0 +1,87 @@
+# Meshtastic Daemon Configuration
+# See: https://meshtastic.org/docs/software/linux/usage/
+
+# Serial device configuration
+# Uncomment and configure the device that matches your Meshtastic hardware
+device:
+  # For USB serial devices
+  # port: /dev/ttyUSB0
+  # For USB ACM devices  
+  # port: /dev/ttyACM0
+  # For specific device IDs
+  # port: /dev/serial/by-id/YOUR_DEVICE_ID
+  
+  # Connection settings
+  # baud: 921600
+  # timeout: 5
+
+# MQTT Configuration
+mqtt:
+  # Connect to the local Mosquitto broker
+  enabled: true
+  host: mosquitto
+  port: 1883
+  
+  # Authentication (using anonymous for local setup)
+  # username: ""
+  # password: ""
+  
+  # Topic configuration
+  topic: "msh/US/bayarea/2/e"
+  
+  # TLS settings (disabled for local development)
+  tls:
+    enabled: false
+    
+  # Additional MQTT options
+  keepalive: 60
+  client_id: "meshtasticd"
+  
+# Logging configuration
+logging:
+  level: INFO
+  # Available levels: CRITICAL, ERROR, WARNING, INFO, DEBUG
+  
+# Node configuration
+node:
+  # Enable/disable various features
+  position_broadcast: true
+  telemetry_broadcast: true
+  
+# Hardware configuration
+hardware:
+  # Configure based on your specific hardware
+  # This section may vary depending on your device type
+  
+# Network configuration
+network:
+  # Wi-Fi configuration (if applicable)
+  wifi:
+    # ssid: "Your-WiFi-SSID"
+    # password: "Your-WiFi-Password"
+    
+# Channel configuration
+channels:
+  # Default channel settings
+  - name: "Default"
+    psk: "1PG7OiApB1nwvP+rz05pAQ=="  # Default Meshtastic key
+    
+# Module configuration
+modules:
+  # Enable/disable specific modules
+  position: true
+  telemetry: true
+  range_test: false
+  store_forward: false
+  
+# Advanced settings
+advanced:
+  # Serial output settings
+  serial_output: false
+  
+  # Debug settings
+  debug: false
+  
+  # Reboot settings
+  auto_reboot: true
+  reboot_seconds: 86400  # 24 hours

@@ -1,0 +1,16 @@
+# Generated data directories
+data/
+mosquitto_data/
+mosquitto_log/
+meshtastic_data/
+
+# Environment file with secrets
+.env.local
+.env.production
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
