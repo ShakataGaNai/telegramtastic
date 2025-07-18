@@ -20,7 +20,7 @@ import traceback
 
 from database.connection import setup_database
 from database.repository import NodeRepository
-from common.common import printThis
+from common.common import printThis2
 
 load_dotenv()
 PRINTER_TYPE = os.getenv("PRINTER_TYPE", "network").lower()
@@ -35,6 +35,7 @@ MQTT_PASS = os.getenv("MQTT_PASS")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))  # Default to 1883 if not set
 MQTT_TOPICS = os.getenv("MQTT_TOPICS")
 CHANNEL_KEY = os.getenv("CHANNEL_KEY")
+ADMIN_IDS = os.getenv("ADMIN_IDS", "").split(",") if os.getenv("ADMIN_IDS") else []
 BROADCAST_ID = 4294967295
 LOG_LEVEL = logging.DEBUG
 
@@ -49,6 +50,7 @@ logger = logging.getLogger('telegramtastic-dm')
 logger.setLevel(LOG_LEVEL)  # Set only this logger to DEBUG
 logger.info(f"Logging level set to {logging.getLevelName(logger.getEffectiveLevel())}")
 logger.debug(f"Logger running to {logging.getLevelName(logger.getEffectiveLevel())}")
+logger.info(f"Admin IDs configured: {ADMIN_IDS if ADMIN_IDS else 'None'}")
 
 # DB SETUP
 db_session_factory = setup_database()
@@ -251,7 +253,7 @@ def main():
     print("Running. Press Ctrl-C to quit.")
 
     while True:
-        time.sleep(0.1)
+        time.sleep(10)
 
 
 def handleDM(packet, interface):
@@ -267,18 +269,24 @@ def handleDM(packet, interface):
         # Get the sender node ID for rate limiting
         sender_node_id = packet["from"]
         
-        # Check if this node can print a message (rate limiting)
-        if node_repo.can_print_message(sender_node_id, MESSAGE_RATE_LIMIT_SECONDS):
-            # Update the last print timestamp in database
-            if node_repo.update_last_print(sender_node_id):
-                logger.info(f"Printing message from node {sender_node_id} ({sender.short_name}): {payload}")
-                # printThis(sender, payload, printer)
-                interface.sendText("Your telegram has been printed. Stop by the Meshtastic booth to pick it up! Main Hall E12 (Right in the middle)",destinationId=packet['fromId']) # Send read receipt
-                # interface.sendText("Telegram Printed!",destinationId=packet['fromId'],wantAck=True,wantResponse=True) # Send read receipt
-            else:
-                logger.warning(f"Failed to update last_print for node {sender_node_id}, skipping print")
+        # Check if sender is an admin (convert to string for comparison)
+        if str(sender_node_id) in ADMIN_IDS:
+            # Admin path - bypass rate limits
+            logger.info(f"Admin printing message from node {sender_node_id} ({sender.short_name}): {payload}")
+            printThis2(sender, payload, printer)
+            interface.sendText("Message Printed", destinationId=packet['fromId'])
         else:
-            logger.info(f"Rate limiting: Skipping message from node {sender_node_id} ({sender.short_name}) - {MESSAGE_RATE_LIMIT_SECONDS}s cooldown active")
+            # Regular user path - check rate limits
+            if node_repo.can_print_message(sender_node_id, MESSAGE_RATE_LIMIT_SECONDS):
+                # Update the last print timestamp in database
+                if node_repo.update_last_print(sender_node_id):
+                    logger.info(f"Printing message from node {sender_node_id} ({sender.short_name}): {payload}")
+                    printThis2(sender, payload, printer)
+                    interface.sendText("Your telegram has been printed. Stop by the Meshtastic booth to pick it up! Main Hall E12 (Right in the middle)",destinationId=packet['fromId'])
+                else:
+                    logger.warning(f"Failed to update last_print for node {sender_node_id}, skipping print")
+            else:
+                logger.info(f"Rate limiting: Skipping message from node {sender_node_id} ({sender.short_name}) - {MESSAGE_RATE_LIMIT_SECONDS}s cooldown active")
 
     except Exception as e:
         logger.warning(f"Error processing MESSAGE_APP packet ({packet}): {e}")
@@ -339,10 +347,10 @@ def onReceive(packet, interface):
 
 def onConnection(interface, topic=pub.AUTO_TOPIC):
     """called when we (re)connect to the radio"""
-    messages.append(("SYSTEM", "Connected to radio!"))
+    logger.info("Connected to radio!")
 
 if __name__ == "__main__":
-    print("Starting up")
+    logger.info("Starting up")
     # initialize_config()
     initialize_users()
     pub.subscribe(onConnection, "meshtastic.connection.established")
